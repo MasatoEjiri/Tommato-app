@@ -6,18 +6,13 @@ import numpy as np
 import pandas as pd
 
 # --- 設定 ---
-# ページの設定
 st.set_page_config(page_title="AIトマト計測アプリ", layout="wide")
-
-# タイトル
 st.title("🍅 AIトマト計測アプリ")
 st.markdown("学習済みAIモデル（YOLOv8）を使用して、トマトを自動検出し計測します。")
 
 # --- モデルの読み込み ---
-# @st.cache_resource を使うことで、モデルの読み込みを1回だけに高速化します
 @st.cache_resource
 def load_model():
-    # 同じフォルダにある best.pt を読み込む
     return YOLO('best.pt')
 
 try:
@@ -35,34 +30,33 @@ conf_threshold = st.sidebar.slider("AIの確信度(Confidence)", 0.1, 1.0, 0.25,
 uploaded_file = st.file_uploader("画像をアップロードしてください", type=['jpg', 'jpeg', 'png'])
 
 if uploaded_file is not None:
-    # 画像をPIL形式で読み込む
-    image = Image.open(uploaded_file)
-    img_array = np.array(image)
+    # PIL画像をNumPy配列（OpenCV形式）に変換
+    image_pil = Image.open(uploaded_file).convert("RGB")
+    img_cv2 = np.array(image_pil)
+    img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR) # OpenCVはBGR形式
 
     # AIで推論実行！
-    # conf=確信度シキイ値
-    results = model(image, conf=conf_threshold)
+    results = model(img_cv2, conf=conf_threshold, verbose=False) # verbose=Falseでログを抑制
 
-    # 結果を取り出す
     result = results[0]
     
-    # 検出された数
     n_tomatoes = len(result.boxes)
     
     if n_tomatoes > 0:
         st.success(f"{n_tomatoes} 個のトマトを検出しました！")
         
-        # 結果を描画した画像を作成
-        # plot()メソッドで簡単にバウンディングボックス付き画像が作れます
-        res_plotted = result.plot() 
-        
-        # 計測データを作成
+        # --- 計測データと描画 ---
         measurement_data = []
         
-        # 各ボックスの座標を取得して計算
-        for i, box in enumerate(result.boxes):
+        # 描画用の画像を用意
+        display_img = img_cv2.copy()
+        
+        # ID順にソート（左上から右下の順）
+        sorted_boxes = sorted(result.boxes, key=lambda b: b.xywh[0][1] * display_img.shape[1] + b.xywh[0][0])
+
+        for i, box in enumerate(sorted_boxes):
             # バウンディングボックスの座標 (x1, y1, x2, y2)
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             
             # 幅と高さを計算
             width = x2 - x1
@@ -83,20 +77,27 @@ if uploaded_file is not None:
                 "縦:横": ratio_text,
                 "確信度": f"{box.conf[0]:.2f}"
             })
+
+            # --- 画像にシンプルに描画 ---
+            # 緑色のボックス
+            cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # 緑色のID番号 (2枚目の画像のように)
+            cv2.putText(display_img, str(i + 1), (x1 + 5, y1 + 25), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
             
         # --- 表示エリア ---
         col1, col2 = st.columns([3, 2])
         
         with col1:
             st.subheader("検出画像")
-            st.image(res_plotted, caption=f"検出結果 ({n_tomatoes}個)", use_container_width=True)
+            # OpenCV画像をStreamlit表示用にRGBに変換
+            st.image(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB), caption=f"検出結果 ({n_tomatoes}個)", use_container_width=True)
             
         with col2:
             st.subheader("計測データ")
             df = pd.DataFrame(measurement_data)
             st.dataframe(df, use_container_width=True)
             
-            # CSVダウンロード
             csv = df.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="CSVをダウンロード",
@@ -106,4 +107,4 @@ if uploaded_file is not None:
             )
     else:
         st.warning("トマトが検出されませんでした。設定の「確信度」を下げてみてください。")
-        st.image(image, caption="アップロード画像", use_container_width=True)
+        st.image(image_pil, caption="アップロード画像", use_container_width=True)

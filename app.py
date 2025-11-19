@@ -7,7 +7,45 @@ import pandas as pd
 
 # --- 設定 ---
 st.set_page_config(page_title="AIトマト計測アプリ", layout="wide")
-st.title("🍅 AIトマト計測アプリ")
+
+# カスタムCSSでファイルアップローダーのスタイルを変更
+st.markdown("""
+    <style>
+    .stFileUploader > div > button {
+        visibility: hidden;
+        height: 0;
+        width: 0;
+    }
+    .stFileUploader > div > div {
+        border: 2px dashed #999999; /* 点線で囲む */
+        border-radius: 8px; /* 角を丸くする */
+        padding: 20px;
+        text-align: center;
+        background-color: #f0f2f6; /* 少し背景色をつける */
+        color: #666666;
+        font-size: 1.2em;
+        font-weight: bold;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 150px; /* 最小高さを設定 */
+    }
+    .stFileUploader > div > div:hover {
+        border-color: #007bff; /* ホバーで色を変える */
+        color: #007bff;
+    }
+    .stFileUploader > div > div > p {
+        margin-top: 10px;
+        font-size: 0.9em;
+        color: #888888;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# タイトル変更
+st.title("🍅 GG-TomatoAI")
 st.markdown("学習済みAIモデル（YOLOv8）を使用して、トマトを自動検出し計測します。")
 
 # --- モデルの読み込み ---
@@ -27,7 +65,14 @@ st.sidebar.header("検出設定")
 conf_threshold = st.sidebar.slider("AIの確信度(Confidence)", 0.1, 1.0, 0.25, 0.05, help="数値を上げると、自信があるものだけ検出します。下げると見逃しが減りますが誤検出が増えます。")
 
 # --- メイン処理 ---
-uploaded_file = st.file_uploader("画像をアップロードしてください", type=['jpg', 'jpeg', 'png'])
+# ファイルアップローダーのラベルを非表示にし、ヘルプテキストで指示
+uploaded_file = st.file_uploader(
+    "画像をアップロードしてください", 
+    type=['jpg', 'jpeg', 'png'],
+    label_visibility="collapsed", # デフォルトのラベルを非表示
+    help="ここに画像をドラッグ＆ドロップしてください" # ヘルプテキストをヒントとして表示
+)
+
 
 if uploaded_file is not None:
     # PIL画像をNumPy配列（OpenCV形式）に変換

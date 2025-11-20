@@ -8,7 +8,7 @@ import pandas as pd
 # --- 設定 ---
 st.set_page_config(page_title="AIトマト計測アプリ", layout="wide")
 
-# カスタムCSSでファイルアップローダーのスタイルを変更
+# カスタムCSS（ドラッグ＆ドロップエリアの強調）
 st.markdown("""
     <style>
     .stFileUploader > div > button {
@@ -17,11 +17,11 @@ st.markdown("""
         width: 0;
     }
     .stFileUploader > div > div {
-        border: 2px dashed #999999; /* 点線で囲む */
-        border-radius: 8px; /* 角を丸くする */
+        border: 2px dashed #999999;
+        border-radius: 8px;
         padding: 20px;
         text-align: center;
-        background-color: #f0f2f6; /* 少し背景色をつける */
+        background-color: #f0f2f6;
         color: #666666;
         font-size: 1.2em;
         font-weight: bold;
@@ -29,10 +29,10 @@ st.markdown("""
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        min-height: 150px; /* 最小高さを設定 */
+        min-height: 150px;
     }
     .stFileUploader > div > div:hover {
-        border-color: #007bff; /* ホバーで色を変える */
+        border-color: #007bff;
         color: #007bff;
     }
     .stFileUploader > div > div > p {
@@ -43,8 +43,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-
-# タイトル変更
+# タイトル
 st.title("🍅 GG-TomatoAI")
 st.markdown("学習済みAIモデル（YOLOv8）を使用して、トマトを自動検出し計測します。")
 
@@ -65,53 +64,43 @@ st.sidebar.header("検出設定")
 conf_threshold = st.sidebar.slider("AIの確信度(Confidence)", 0.1, 1.0, 0.25, 0.05, help="数値を上げると、自信があるものだけ検出します。下げると見逃しが減りますが誤検出が増えます。")
 
 # --- メイン処理 ---
-# ファイルアップローダーのラベルを非表示にし、ヘルプテキストで指示
 uploaded_file = st.file_uploader(
     "画像をアップロードしてください", 
     type=['jpg', 'jpeg', 'png'],
-    label_visibility="collapsed", # デフォルトのラベルを非表示
-    help="ここに画像をドラッグ＆ドロップしてください" # ヘルプテキストをヒントとして表示
+    label_visibility="collapsed",
+    help="ここに画像をドラッグ＆ドロップしてください"
 )
 
-
 if uploaded_file is not None:
-    # PIL画像をNumPy配列（OpenCV形式）に変換
+    # 画像変換処理
     image_pil = Image.open(uploaded_file).convert("RGB")
     img_cv2 = np.array(image_pil)
-    img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR) # OpenCVはBGR形式
+    img_cv2 = cv2.cvtColor(img_cv2, cv2.COLOR_RGB2BGR)
 
-    # AIで推論実行！
-    results = model(img_cv2, conf=conf_threshold, verbose=False) # verbose=Falseでログを抑制
-
+    # AI推論
+    results = model(img_cv2, conf=conf_threshold, verbose=False)
     result = results[0]
-    
     n_tomatoes = len(result.boxes)
     
     if n_tomatoes > 0:
         st.success(f"{n_tomatoes} 個のトマトを検出しました！")
         
-        # --- 計測データと描画 ---
         measurement_data = []
-        
-        # 描画用の画像を用意
         display_img = img_cv2.copy()
         
-        # ID順にソート（左上から右下の順）
-        sorted_boxes = sorted(result.boxes, key=lambda b: b.xywh[0][1] * display_img.shape[1] + b.xywh[0][0])
+        # 座標順（左上から右下）にソート
+        # y座標を重視しつつx座標も考慮するスコア付け
+        sorted_boxes = sorted(result.boxes, key=lambda b: b.xywh[0][1] * 10 + b.xywh[0][0])
 
         for i, box in enumerate(sorted_boxes):
-            # バウンディングボックスの座標 (x1, y1, x2, y2)
+            # 座標取得
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
             
-            # 幅と高さを計算
+            # サイズ計算
             width = x2 - x1
             height = y2 - y1
-            
-            # 長軸・短軸の判定（長い方を長軸とする）
             long_axis = max(width, height)
             short_axis = min(width, height)
-            
-            # 比率計算
             ratio = short_axis / long_axis
             ratio_text = f"1:{ratio:.2f}"
             
@@ -123,19 +112,31 @@ if uploaded_file is not None:
                 "確信度": f"{box.conf[0]:.2f}"
             })
 
-            # --- 画像にシンプルに描画 ---
-            # 緑色のボックス
+            # --- 【修正箇所】シンプルで小さな描画 ---
+            
+            # 1. 枠線を描く (緑色, 太さ2)
             cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            # 緑色のID番号 (2枚目の画像のように)
-            cv2.putText(display_img, str(i + 1), (x1 + 5, y1 + 25), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2, cv2.LINE_AA)
+            
+            # 2. テキストの設定 (フォントサイズを小さく)
+            label = str(i + 1)
+            font_scale = 0.6  # ★ここを小さくしました (0.8 -> 0.6)
+            thickness = 2     # 文字の太さ
+            
+            # 文字のサイズを計算して配置調整（枠の上に載せる）
+            (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+            
+            # 文字が見やすいように少し上に配置（枠からはみ出る場合は内側に入れる）
+            text_y = y1 - 5 if y1 - 5 > 10 else y1 + 20
+            
+            # 文字を描画
+            cv2.putText(display_img, label, (x1, text_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness, cv2.LINE_AA)
             
         # --- 表示エリア ---
         col1, col2 = st.columns([3, 2])
         
         with col1:
             st.subheader("検出画像")
-            # OpenCV画像をStreamlit表示用にRGBに変換
             st.image(cv2.cvtColor(display_img, cv2.COLOR_BGR2RGB), caption=f"検出結果 ({n_tomatoes}個)", use_container_width=True)
             
         with col2:

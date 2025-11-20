@@ -8,35 +8,28 @@ import pandas as pd
 # --- 設定 ---
 st.set_page_config(page_title="GG-TomatoAI β版", layout="wide")
 
-# --- 洗練されたデザインのCSS ---
+# --- 洗練されたデザインのCSS (前回と同じ) ---
 st.markdown("""
     <style>
-    /* ファイルアップローダーのドロップゾーン全体 */
     [data-testid="stFileUploaderDropzone"] {
-        border: 2px dashed #ff7f7f !important; /* 優しいトマト色の枠線 */
-        border-radius: 16px; /* 角を丸く */
-        background-color: #fffbfb; /* ほんのり赤い白背景 */
-        padding: 40px 20px; /* 余白をたっぷりとる */
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* うっすら影をつけて浮き上がらせる */
-        transition: all 0.3s ease; /* アニメーション */
+        border: 2px dashed #ff7f7f !important;
+        border-radius: 16px;
+        background-color: #fffbfb;
+        padding: 40px 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
     }
-    
-    /* マウスを乗せた時の動き */
     [data-testid="stFileUploaderDropzone"]:hover {
-        border-color: #ff4b4b !important; /* 枠線を濃く */
-        background-color: #ffefef; /* 背景を少し濃く */
-        transform: translateY(-2px); /* 少し上に浮く */
-        box-shadow: 0 8px 16px rgba(255, 75, 75, 0.15); /* 赤い影を強める */
+        border-color: #ff4b4b !important;
+        background-color: #ffefef;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(255, 75, 75, 0.15);
     }
-
-    /* 中にある「Drag and drop...」などの文字色 */
     [data-testid="stFileUploaderDropzone"] div, 
     [data-testid="stFileUploaderDropzone"] span {
-        color: #666 !important; /* 落ち着いたグレー */
+        color: #666 !important;
         font-family: "Helvetica Neue", Arial, sans-serif;
     }
-    
-    /* 「Browse files」ボタンのデザイン */
     button[data-testid="stBaseButton-secondary"] {
         border: 1px solid #ff4b4b !important;
         color: #ff4b4b !important;
@@ -55,7 +48,7 @@ st.markdown("""
 # タイトル
 st.title("🍅 GG-TomatoAI β版")
 
-# 案内テキストをアイコン付きで表示（ここを目立たせる）
+# 案内テキスト
 st.markdown("""
     <div style='text-align: center; margin-bottom: 10px; color: #444;'>
         <h5>👇 トマトの画像をここにドロップしてください</h5>
@@ -79,7 +72,6 @@ st.sidebar.header("検出設定")
 conf_threshold = st.sidebar.slider("AIの確信度(Confidence)", 0.1, 1.0, 0.25, 0.05, help="数値を上げると、自信があるものだけ検出します。下げると見逃しが減りますが誤検出が増えます。")
 
 # --- メイン処理 ---
-# label_visibility="collapsed" で標準のラベルを消し、上のカスタム案内を目立たせる
 uploaded_file = st.file_uploader(
     "画像をアップロード", 
     type=['jpg', 'jpeg', 'png'],
@@ -126,19 +118,26 @@ if uploaded_file is not None:
                 "確信度": f"{box.conf[0]:.2f}"
             })
 
-            # --- 描画処理（シンプル緑枠） ---
-            cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # --- 【修正箇所】枠線を消して、番号を中心に表示 ---
             
-            # テキスト描画
+            # 中心座標を計算
+            center_x = int((x1 + x2) / 2)
+            center_y = int((y1 + y2) / 2)
+            
+            # テキストの設定
             label = str(i + 1)
-            font_scale = 0.6
-            thickness = 2
+            font_scale = 0.7  # 文字の大きさ
+            thickness = 2     # 文字の太さ
+            color = (0, 255, 0) # 緑色
             
-            # 文字位置調整
-            text_y = y1 - 5 if y1 - 5 > 10 else y1 + 20
+            # 文字のサイズを取得して、中心に配置するためのズレを計算
+            (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+            text_x = center_x - int(text_w / 2)
+            text_y = center_y + int(text_h / 2)
             
-            cv2.putText(display_img, label, (x1, text_y), 
-                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness, cv2.LINE_AA)
+            # 文字を描画 (枠線 cv2.rectangle は削除しました)
+            cv2.putText(display_img, label, (text_x, text_y), 
+                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
             
         # --- 表示エリア ---
         col1, col2 = st.columns([3, 2])

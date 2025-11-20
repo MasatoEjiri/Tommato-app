@@ -8,38 +8,46 @@ import pandas as pd
 # --- 設定 ---
 st.set_page_config(page_title="GG-TomatoAI β版", layout="wide")
 
-# --- 洗練されたデザインのCSS (前回と同じ) ---
+# --- クラシックで洗練されたデザインのCSS ---
 st.markdown("""
     <style>
+    /* ファイルアップローダーのドロップゾーン全体 */
     [data-testid="stFileUploaderDropzone"] {
-        border: 2px dashed #ff7f7f !important;
-        border-radius: 16px;
-        background-color: #fffbfb;
+        border: 2px dashed #4a4a4a !important; /* 落ち着いたダークグレーの枠線 */
+        border-radius: 4px; /* 角丸を少し減らしてシャープに */
+        background-color: #f9f9f9; /* 無機質なライトグレー */
         padding: 40px 20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         transition: all 0.3s ease;
     }
+    
+    /* マウスを乗せた時の動き */
     [data-testid="stFileUploaderDropzone"]:hover {
-        border-color: #ff4b4b !important;
-        background-color: #ffefef;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(255, 75, 75, 0.15);
+        border-color: #000000 !important; /* ホバー時は真っ黒に */
+        background-color: #f0f0f0; /* 少しだけ濃く */
+        cursor: pointer;
     }
+
+    /* テキストの色 */
     [data-testid="stFileUploaderDropzone"] div, 
     [data-testid="stFileUploaderDropzone"] span {
-        color: #666 !important;
-        font-family: "Helvetica Neue", Arial, sans-serif;
+        color: #333 !important; /* 黒に近いグレー */
+        font-family: "Helvetica Neue", Arial, sans-serif; /* 定番フォント */
+        letter-spacing: 0.05em; /* 文字間隔を少し開けて上品に */
     }
+    
+    /* 「Browse files」ボタンのデザイン (モノトーン) */
     button[data-testid="stBaseButton-secondary"] {
-        border: 1px solid #ff4b4b !important;
-        color: #ff4b4b !important;
-        background-color: white !important;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: bold;
+        border: 1px solid #4a4a4a !important;
+        color: #4a4a4a !important;
+        background-color: transparent !important;
+        border-radius: 4px;
+        padding: 0.5rem 1.5rem;
+        font-weight: normal;
+        text-transform: uppercase; /* 大文字にしてクラシック感を出す */
+        font-size: 0.9em;
     }
     button[data-testid="stBaseButton-secondary"]:hover {
-        background-color: #ff4b4b !important;
+        background-color: #4a4a4a !important;
         color: white !important;
     }
     </style>
@@ -48,10 +56,10 @@ st.markdown("""
 # タイトル
 st.title("🍅 GG-TomatoAI β版")
 
-# 案内テキスト
+# 案内テキスト（シンプルに）
 st.markdown("""
-    <div style='text-align: center; margin-bottom: 10px; color: #444;'>
-        <h5>👇 トマトの画像をここにドロップしてください</h5>
+    <div style='text-align: center; margin-bottom: 15px; color: #666; font-size: 0.9em;'>
+        PLEASE DROP YOUR IMAGE HERE
     </div>
     """, unsafe_allow_html=True)
 
@@ -118,7 +126,7 @@ if uploaded_file is not None:
                 "確信度": f"{box.conf[0]:.2f}"
             })
 
-            # --- 【修正箇所】枠線を消して、番号を中心に表示 ---
+            # --- 描画処理 ---
             
             # 中心座標を計算
             center_x = int((x1 + x2) / 2)
@@ -126,16 +134,16 @@ if uploaded_file is not None:
             
             # テキストの設定
             label = str(i + 1)
-            font_scale = 0.7  # 文字の大きさ
-            thickness = 2     # 文字の太さ
+            font_scale = 1.1  # ★サイズアップ (0.7 -> 1.1)
+            thickness = 3     # ★太くして視認性を確保 (2 -> 3)
             color = (0, 255, 0) # 緑色
             
-            # 文字のサイズを取得して、中心に配置するためのズレを計算
+            # 文字のサイズを取得して配置調整
             (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
             text_x = center_x - int(text_w / 2)
             text_y = center_y + int(text_h / 2)
             
-            # 文字を描画 (枠線 cv2.rectangle は削除しました)
+            # 文字を描画
             cv2.putText(display_img, label, (text_x, text_y), 
                         cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
             

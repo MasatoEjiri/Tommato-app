@@ -6,45 +6,51 @@ import numpy as np
 import pandas as pd
 
 # --- 設定 ---
-st.set_page_config(page_title="AIトマト計測アプリ", layout="wide")
+st.set_page_config(page_title="GG-TomatoAI β版", layout="wide")
 
-# カスタムCSS（ドラッグ＆ドロップエリアの強調）
+# カスタムCSS（ドラッグ＆ドロップエリアを赤く目立たせる）
 st.markdown("""
     <style>
+    /* アップロードボタンのデフォルト表示を消す */
     .stFileUploader > div > button {
-        visibility: hidden;
-        height: 0;
-        width: 0;
+        display: none;
     }
-    .stFileUploader > div > div {
-        border: 2px dashed #999999;
-        border-radius: 8px;
-        padding: 20px;
-        text-align: center;
-        background-color: #f0f2f6;
-        color: #666666;
-        font-size: 1.2em;
-        font-weight: bold;
+    
+    /* ドラッグ＆ドロップエリアのスタイル */
+    [data-testid="stFileUploaderDropzone"] {
+        border: 3px dashed #ff4b4b !important; /* 赤い太い点線 */
+        border-radius: 10px;
+        background-color: #fff0f0; /* 薄い赤色の背景 */
+        padding: 30px;
+        min-height: 150px;
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
-        min-height: 150px;
+        text-align: center;
+        transition: all 0.3s ease;
     }
-    .stFileUploader > div > div:hover {
-        border-color: #007bff;
-        color: #007bff;
+    
+    /* マウスを乗せた時の変化 */
+    [data-testid="stFileUploaderDropzone"]:hover {
+        border-color: #ff0000 !important; /* ホバー時はより濃い赤に */
+        background-color: #ffe6e6;
+        cursor: pointer;
     }
-    .stFileUploader > div > div > p {
-        margin-top: 10px;
-        font-size: 0.9em;
-        color: #888888;
+
+    /* 中のテキストを見やすく */
+    [data-testid="stFileUploaderDropzone"] div::before {
+        content: "ここに画像をドラッグ＆ドロップしてください";
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #ff4b4b;
+        margin-bottom: 10px;
+        display: block;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# タイトル
-st.title("🍅 GG-TomatoAI")
+# タイトル変更
+st.title("🍅 GG-TomatoAI β版")
 st.markdown("学習済みAIモデル（YOLOv8）を使用して、トマトを自動検出し計測します。")
 
 # --- モデルの読み込み ---
@@ -64,11 +70,11 @@ st.sidebar.header("検出設定")
 conf_threshold = st.sidebar.slider("AIの確信度(Confidence)", 0.1, 1.0, 0.25, 0.05, help="数値を上げると、自信があるものだけ検出します。下げると見逃しが減りますが誤検出が増えます。")
 
 # --- メイン処理 ---
+# アップローダー（ラベルはCSSで擬似的に表示するため空にするか非表示にする）
 uploaded_file = st.file_uploader(
-    "画像をアップロードしてください", 
+    "画像をアップロード", 
     type=['jpg', 'jpeg', 'png'],
-    label_visibility="collapsed",
-    help="ここに画像をドラッグ＆ドロップしてください"
+    label_visibility="collapsed"
 )
 
 if uploaded_file is not None:
@@ -89,7 +95,6 @@ if uploaded_file is not None:
         display_img = img_cv2.copy()
         
         # 座標順（左上から右下）にソート
-        # y座標を重視しつつx座標も考慮するスコア付け
         sorted_boxes = sorted(result.boxes, key=lambda b: b.xywh[0][1] * 10 + b.xywh[0][0])
 
         for i, box in enumerate(sorted_boxes):
@@ -112,23 +117,17 @@ if uploaded_file is not None:
                 "確信度": f"{box.conf[0]:.2f}"
             })
 
-            # --- 【修正箇所】シンプルで小さな描画 ---
-            
-            # 1. 枠線を描く (緑色, 太さ2)
+            # --- 描画処理（シンプル緑枠） ---
             cv2.rectangle(display_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
             
-            # 2. テキストの設定 (フォントサイズを小さく)
+            # テキスト描画
             label = str(i + 1)
-            font_scale = 0.6  # ★ここを小さくしました (0.8 -> 0.6)
-            thickness = 2     # 文字の太さ
+            font_scale = 0.6
+            thickness = 2
             
-            # 文字のサイズを計算して配置調整（枠の上に載せる）
-            (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
-            
-            # 文字が見やすいように少し上に配置（枠からはみ出る場合は内側に入れる）
+            # 文字位置調整
             text_y = y1 - 5 if y1 - 5 > 10 else y1 + 20
             
-            # 文字を描画
             cv2.putText(display_img, label, (x1, text_y), 
                         cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness, cv2.LINE_AA)
             

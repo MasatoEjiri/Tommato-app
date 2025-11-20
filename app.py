@@ -8,50 +8,59 @@ import pandas as pd
 # --- 設定 ---
 st.set_page_config(page_title="GG-TomatoAI β版", layout="wide")
 
-# カスタムCSS（ドラッグ＆ドロップエリアを赤く目立たせる）
+# --- 洗練されたデザインのCSS ---
 st.markdown("""
     <style>
-    /* アップロードボタンのデフォルト表示を消す */
-    .stFileUploader > div > button {
-        display: none;
-    }
-    
-    /* ドラッグ＆ドロップエリアのスタイル */
+    /* ファイルアップローダーのドロップゾーン全体 */
     [data-testid="stFileUploaderDropzone"] {
-        border: 3px dashed #ff4b4b !important; /* 赤い太い点線 */
-        border-radius: 10px;
-        background-color: #fff0f0; /* 薄い赤色の背景 */
-        padding: 30px;
-        min-height: 150px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        transition: all 0.3s ease;
+        border: 2px dashed #ff7f7f !important; /* 優しいトマト色の枠線 */
+        border-radius: 16px; /* 角を丸く */
+        background-color: #fffbfb; /* ほんのり赤い白背景 */
+        padding: 40px 20px; /* 余白をたっぷりとる */
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05); /* うっすら影をつけて浮き上がらせる */
+        transition: all 0.3s ease; /* アニメーション */
     }
     
-    /* マウスを乗せた時の変化 */
+    /* マウスを乗せた時の動き */
     [data-testid="stFileUploaderDropzone"]:hover {
-        border-color: #ff0000 !important; /* ホバー時はより濃い赤に */
-        background-color: #ffe6e6;
-        cursor: pointer;
+        border-color: #ff4b4b !important; /* 枠線を濃く */
+        background-color: #ffefef; /* 背景を少し濃く */
+        transform: translateY(-2px); /* 少し上に浮く */
+        box-shadow: 0 8px 16px rgba(255, 75, 75, 0.15); /* 赤い影を強める */
     }
 
-    /* 中のテキストを見やすく */
-    [data-testid="stFileUploaderDropzone"] div::before {
-        content: "ここに画像をドラッグ＆ドロップしてください";
-        font-size: 1.2em;
+    /* 中にある「Drag and drop...」などの文字色 */
+    [data-testid="stFileUploaderDropzone"] div, 
+    [data-testid="stFileUploaderDropzone"] span {
+        color: #666 !important; /* 落ち着いたグレー */
+        font-family: "Helvetica Neue", Arial, sans-serif;
+    }
+    
+    /* 「Browse files」ボタンのデザイン */
+    button[data-testid="stBaseButton-secondary"] {
+        border: 1px solid #ff4b4b !important;
+        color: #ff4b4b !important;
+        background-color: white !important;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
         font-weight: bold;
-        color: #ff4b4b;
-        margin-bottom: 10px;
-        display: block;
+    }
+    button[data-testid="stBaseButton-secondary"]:hover {
+        background-color: #ff4b4b !important;
+        color: white !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# タイトル変更
+# タイトル
 st.title("🍅 GG-TomatoAI β版")
-st.markdown("学習済みAIモデル（YOLOv8）を使用して、トマトを自動検出し計測します。")
+
+# 案内テキストをアイコン付きで表示（ここを目立たせる）
+st.markdown("""
+    <div style='text-align: center; margin-bottom: 10px; color: #444;'>
+        <h5>👇 トマトの画像をここにドロップしてください</h5>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- モデルの読み込み ---
 @st.cache_resource
@@ -70,7 +79,7 @@ st.sidebar.header("検出設定")
 conf_threshold = st.sidebar.slider("AIの確信度(Confidence)", 0.1, 1.0, 0.25, 0.05, help="数値を上げると、自信があるものだけ検出します。下げると見逃しが減りますが誤検出が増えます。")
 
 # --- メイン処理 ---
-# アップローダー（ラベルはCSSで擬似的に表示するため空にするか非表示にする）
+# label_visibility="collapsed" で標準のラベルを消し、上のカスタム案内を目立たせる
 uploaded_file = st.file_uploader(
     "画像をアップロード", 
     type=['jpg', 'jpeg', 'png'],
